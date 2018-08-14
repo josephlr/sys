@@ -188,6 +188,8 @@ func NewCallbackCDecl(fn interface{}) uintptr {
 //sys	GetFileAttributesEx(name *uint16, level uint32, info *byte) (err error) = kernel32.GetFileAttributesExW
 //sys	GetCommandLine() (cmd *uint16) = kernel32.GetCommandLineW
 //sys	CommandLineToArgv(cmd *uint16, argc *int32) (argv *[8192]*[8192]uint16, err error) [failretval==nil] = shell32.CommandLineToArgvW
+//sys   shGetKnownFolderPath(rfid *GUID, dwFlags uint32, hToken syscall.Handle, pszPath *uintptr) (err error) = shell32.SHGetKnownFolderPath
+//sys   coTaskMemFree(pv uintptr) (err error) = ole32.CoTaskMemFree
 //sys	LocalFree(hmem Handle) (handle Handle, err error) [failretval!=0]
 //sys	SetHandleInformation(handle Handle, mask uint32, flags uint32) (err error)
 //sys	FlushFileBuffers(handle Handle) (err error)
@@ -263,6 +265,16 @@ func NewCallbackCDecl(fn interface{}) uintptr {
 //sys	SetVolumeMountPoint(volumeMountPoint *uint16, volumeName *uint16) (err error) = SetVolumeMountPointW
 
 // syscall interface implementation for other packages
+
+func SHGetKnownFolderPath(rfid *GUID, dwFlags uint32, hToken syscall.Handle) (string, error) {
+	var rawPath uintptr
+	if err := shGetKnownFolderPath(rfid, dwFlags, hToken, &rawPath); err != nil {
+		return "", err
+	}
+	defer coTaskMemFree(rawPath)
+	pathSlice := (*[1 << 29]uint16)(unsafe.Pointer(rawPath))[:]
+	return UTF16ToString(pathSlice), nil
+}
 
 // GetProcAddressByOrdinal retrieves the address of the exported
 // function from module by ordinal.
